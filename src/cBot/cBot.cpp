@@ -51,9 +51,10 @@ cBot::cBot(string token) : token(token)
         {
             thread loggerThread(&cBot::logger,this,message);
             loggerThread.detach();
+            activeCommands[message->from->id] += message->text;
             for (auto& c : cBot::setupMessages())
             {
-                if (StringTools::startsWith(this->command,c.first))
+                if (StringTools::startsWith(activeCommands[message->from->id], c.first))
                 {
                     auto func = std::any_cast<std::_Binder < std::_Unforced, void (cBot::*)(TgBot::Bot&, Message::Ptr), cBot*, _Ph<1> const&, _Ph<2> const&>>(c.second);
                     printf("User: %s, called messageCom:%s \n", message->from->username.c_str(), message->text.c_str());
@@ -125,9 +126,13 @@ unordered_map<string, any> cBot::setupMessages() noexcept
 {
     auto Messages = unordered_map<string, any>{};
 
-    Messages["Select"] = bind(&cBot::select, this, placeholders::_1, placeholders::_2);
-    Messages["Personal"] = bind(&cBot::select, this, placeholders::_1, placeholders::_2);
-    Messages["Team"] = bind([]() {});
+    Messages["Select"] = bind(&cBot::select, this, placeholders::_1, placeholders::_2); // At all times it must stay at first place
+    Messages["CreatePersonal"] = bind(&cBot::createPersonal, this, placeholders::_1, placeholders::_2);
+    Messages["CreateTeam"] = bind(&cBot::askTeam, this, placeholders::_1, placeholders::_2);
+    Messages["Create2Team"] = bind(&cBot::createTeam, this, placeholders::_1, placeholders::_2);
+    Messages["ViewPersonal"]=  bind(&cBot::viewPersonal, this, placeholders::_1, placeholders::_2);
+    Messages["ViewTeam"] = bind(&cBot::askTeam, this, placeholders::_1, placeholders::_2);
+    Messages["View2Team"] = bind(&cBot::viewTeam, this, placeholders::_1, placeholders::_2);
 
     return Messages;
 }
@@ -169,12 +174,12 @@ void cBot::logger(Message::Ptr message)
         {
             if (c == "text")
             {
-                printf("User: %s entered: %s\n", message->from->username.c_str(), message->text.c_str());
+                printf("User: %s, id = %lld, entered: %s\n", message->from->username.c_str(),message->from->id, message->text.c_str());
                 return;
             }
             else
             {
-                printf("User: %s sended %s\n", message->from->username.c_str(), c.c_str()); // TODO: fileid of message if exist
+                printf("User: %s, id = %lld, sended %s, fileid = %s\n", message->from->username.c_str(), message->from->id, c.c_str(), type.getMessageText().back().c_str()); // TODO: fileid of message if exist
                 return;
             }
         }
@@ -191,15 +196,15 @@ void cBot::createCommand(Bot& bot, Message::Ptr message)
 {
     activeBlocks[message->from->id].deleteBlock(bot);
     bot.getApi().sendMessage(message->chat->id, "Choose what block you want to create:", false, 0, personalKeyboard);
+    activeCommands[message->from->id] = "Create";
 }
 
 void cBot::blockCommand(Bot& bot, Message::Ptr message) // use unordered_map for block where userid is key and block is value so in case of existing of object it will be updated
 {
     activeBlocks[message->from->id].deleteBlock(bot);
     //json testJson = R"({"array" : [{"type" : "text", "caption" : "caption", "text" : "some text"}, { "type" : "photo", "caption" : "caption","text" : "AgACAgIAAxkBAAIInmTbL1L44SYpat8S6ALFPbjdhXNPAALj0zEb0h3YSq4b3q520-CpAQADAgADcwADMAQ" }]})"_json;
-    activeBlocks[message->from->id] = blockView(testJson, message, 1);
-    activeBlocks[message->from->id].sendBlock(bot);
-    //bot.getApi().sendMessage(message->chat->id, "Choose what blocks you want to view:", false, 0, personalKeyboard);
+    bot.getApi().sendMessage(message->chat->id, "Choose what blocks you want to view:", false, 0, personalKeyboard);
+    activeCommands[message->from->id] = "View";
 }
 
 void cBot::nextBlock(Bot& bot, CallbackQuery::Ptr query)
@@ -212,12 +217,11 @@ void cBot::nextBlock(Bot& bot, CallbackQuery::Ptr query)
     activeBlocks[query->message->from->id].sendBlock(bot);
 }
 
-void cBot::selectBlock(Bot& bot, CallbackQuery::Ptr query) // TODO: Implementing it using coroutines
+void cBot::selectBlock(Bot& bot, CallbackQuery::Ptr query)
 {
-    ForceReply::Ptr forceReply;
-    activeBlocks[query->message->from->id].deleteBlock(bot);
-    bot.getApi().sendMessage(query->message->chat->id, "Enter number of block you want to select",0,0,forceReply);
-    command = "Select";
+    activeBlocks[query->from->id].deleteBlock(bot);
+    bot.getApi().sendMessage(query->message->chat->id, "Enter number of block you want to select");
+    activeCommands[query->from->id] = "Select";
     //TODO add number proccesing to anyMessage for this func
     //Getting json with selected number. Changing number in select query. Creating new blockView and replacing old. Sending base
 }
@@ -237,14 +241,49 @@ void cBot::previousBlock(Bot& bot, CallbackQuery::Ptr query)
 void cBot::select(Bot& bot, Message::Ptr message)
 {
     //
-    //activeBlocks[message->from->id] = blockView(testJson, message, stoi(message->text));
-    //activeBlocks[message->from->id].sendBlock(bot);
-    try
+    activeBlocks[message->from->id] = blockView(testJson, message, stoi(message->text));
+    activeBlocks[message->from->id].sendBlock(bot);
+}
+
+void cBot::askTeam(Bot& bot, Message::Ptr message)
+{
+    //TODO: check if message->from->id is in team
+    //TODO: feature of adding people in team
+    if (StringTools::startsWith(activeCommands[message->from->id], "ViewTeam"))
     {
-        timeProcessor time(message);
+        bot.getApi().sendMessage(message->chat->id, "Enter name of team you want to view");
+        activeCommands[message->from->id] = "View2Team";
     }
-    catch (exception& e)
+    else
     {
-        printf("%s", e.what());
+        activeCommands[message->from->id] = "Create2Team";
+        bot.getApi().sendMessage(message->chat->id, "Enter name of team under which you want to create block");
     }
+}
+
+void cBot::createTeam(Bot& bot, Message::Ptr message)
+{
+    
+}
+
+void cBot::createPersonal(Bot& bot, Message::Ptr message)
+{
+    //Separate procedure into several different procedures which can be used by TeamCreator and PersonalCreator
+}
+
+void cBot::viewTeam(Bot& bot, Message::Ptr message)
+{
+    //getting json from db
+    //TODO: Check if such team is existing
+    activeCommands[message->from->id] = "";
+    activeBlocks[message->from->id] = blockView(testJson, message, 1);
+    activeBlocks[message->from->id].sendBlock(bot);
+}
+
+void cBot::viewPersonal(Bot& bot, Message::Ptr message)
+{
+    //Getting json from db
+    activeCommands[message->from->id] = "";
+    activeBlocks[message->from->id] = blockView(testJson, message, 1);
+    activeBlocks[message->from->id].sendBlock(bot);
 }

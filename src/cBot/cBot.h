@@ -1,6 +1,5 @@
 #pragma once
 #include "pch.h"
-#include "timeProcessor.cpp"
 #include "messageTypeParser.cpp"
 #include "blockCreate.cpp"
 #include "blockView.cpp"
@@ -30,15 +29,25 @@ public:
 	void selectBlock(Bot& bot, CallbackQuery::Ptr query);
 	void previousBlock(Bot& bot, CallbackQuery::Ptr query);
 	void select(Bot& bot, Message::Ptr query);
+	void askTeam(Bot& bot, Message::Ptr message);
+	void createTeam(Bot& bot, Message::Ptr message);
+	void createPersonal(Bot& bot, Message::Ptr message);
+	void viewTeam(Bot& bot, Message::Ptr message);
+	void viewPersonal(Bot& bot, Message::Ptr message);
 private:
 	string token;
-	string command{};
 
 	ReplyKeyboardMarkup::Ptr personalKeyboard{new ReplyKeyboardMarkup};
 
 	//TODO Implement a new logging system
 	//vector<Message::Ptr> messagesForLogs{};
 
+	//TODO: Implement hash table of mutex for selecting blocks
+	//Key is id of user and mutex is T
+	//Notify mutex by message->from->id 
+	//Also need to store condition_vars
+
+	unordered_map<int64_t, string> activeCommands{};
 	unordered_map<int64_t, blockView> activeBlocks{};
 
 	json testJson = R"({"array" : [{"type" : "text", "caption" : "caption1", "text" : "some text1"}, 
