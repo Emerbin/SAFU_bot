@@ -66,7 +66,7 @@ cBot::cBot(string token) : token(token)
 
     bot.getEvents().onUnknownCommand([&bot, this](Message::Ptr message)
         {
-            activeBlocks[message->from->id].deleteBlock(bot);
+            activeBlockViewers[message->from->id].deleteBlock(bot);
             bot.getApi().sendMessage(message->chat->id, " You typed unknown command. \xF0\x9F\x9A\xAB \nSorry, I can't understand you. Try again");
         });
 
@@ -118,6 +118,7 @@ unordered_map<string, any> cBot::setupCommands() noexcept
     Commands["start"] = bind(&cBot::startCommand, this, placeholders::_1, placeholders::_2);
     Commands["create"] = bind(&cBot::createCommand, this, placeholders::_1, placeholders::_2);
     Commands["block"] = bind(&cBot::blockCommand, this, placeholders::_1, placeholders::_2);
+    Commands["save"] = bind(&cBot::saveCommand, this, placeholders::_1, placeholders::_2);
 
     return Commands;
 }
@@ -133,6 +134,8 @@ unordered_map<string, any> cBot::setupMessages() noexcept
     Messages["ViewPersonal"]=  bind(&cBot::viewPersonal, this, placeholders::_1, placeholders::_2);
     Messages["ViewTeam"] = bind(&cBot::askTeam, this, placeholders::_1, placeholders::_2);
     Messages["View2Team"] = bind(&cBot::viewTeam, this, placeholders::_1, placeholders::_2);
+    Messages["PersonalCaption"] = bind(&cBot::appendPersonalCaption, this, placeholders::_1, placeholders::_2);
+    Messages["PersonalMessage"] = bind(&cBot::appendPersonalMessage, this, placeholders::_1, placeholders::_2);
 
     return Messages;
 }
@@ -188,38 +191,44 @@ void cBot::logger(Message::Ptr message)
 
 void cBot::startCommand(Bot& bot, Message::Ptr message)
 {
-    activeBlocks[message->from->id].deleteBlock(bot);
+    activeBlockViewers[message->from->id].deleteBlock(bot);
     bot.getApi().sendMessage(message->chat->id, "/create to create a new block \n/block to view blocks");
 }
 
 void cBot::createCommand(Bot& bot, Message::Ptr message)
 {
-    activeBlocks[message->from->id].deleteBlock(bot);
+    activeBlockViewers[message->from->id].deleteBlock(bot);
     bot.getApi().sendMessage(message->chat->id, "Choose what block you want to create:", false, 0, personalKeyboard);
     activeCommands[message->from->id] = "Create";
 }
 
 void cBot::blockCommand(Bot& bot, Message::Ptr message) // use unordered_map for block where userid is key and block is value so in case of existing of object it will be updated
 {
-    activeBlocks[message->from->id].deleteBlock(bot);
+    activeBlockViewers[message->from->id].deleteBlock(bot);
     //json testJson = R"({"array" : [{"type" : "text", "caption" : "caption", "text" : "some text"}, { "type" : "photo", "caption" : "caption","text" : "AgACAgIAAxkBAAIInmTbL1L44SYpat8S6ALFPbjdhXNPAALj0zEb0h3YSq4b3q520-CpAQADAgADcwADMAQ" }]})"_json;
     bot.getApi().sendMessage(message->chat->id, "Choose what blocks you want to view:", false, 0, personalKeyboard);
     activeCommands[message->from->id] = "View";
 }
 
+void cBot::saveCommand(Bot& bot, Message::Ptr message)
+{
+    blocks.insert(make_pair(message->from->id, activeBlockCreators[message->from->id].saveBlock()));
+    activeCommands[message->from->id] = "";
+}
+
 void cBot::nextBlock(Bot& bot, CallbackQuery::Ptr query)
 {
-    activeBlocks[query->message->from->id].deleteBlock(bot);
+    activeBlockViewers[query->from->id].deleteBlock(bot);
     //Getting json with next number. Changing number in select query. Creating new blockView and replacing old. Sending base
-    uint32_t blockNumber = activeBlocks[query->message->from->id].getBlockNumber() + 1;
+    uint32_t blockNumber = activeBlockViewers[query->from->id].getBlockNumber() + 1;
     //json
-    activeBlocks[query->message->from->id] = blockView(testJson, query->message, blockNumber);
-    activeBlocks[query->message->from->id].sendBlock(bot);
+    activeBlockViewers[query->from->id] = blockView(json::parse(blocks.find(query->from->id)->second), query->message, blockNumber);
+    activeBlockViewers[query->from->id].sendBlock(bot);
 }
 
 void cBot::selectBlock(Bot& bot, CallbackQuery::Ptr query)
 {
-    activeBlocks[query->from->id].deleteBlock(bot);
+    activeBlockViewers[query->from->id].deleteBlock(bot);
     bot.getApi().sendMessage(query->message->chat->id, "Enter number of block you want to select");
     activeCommands[query->from->id] = "Select";
     //TODO add number proccesing to anyMessage for this func
@@ -228,27 +237,28 @@ void cBot::selectBlock(Bot& bot, CallbackQuery::Ptr query)
 
 void cBot::previousBlock(Bot& bot, CallbackQuery::Ptr query)
 {
-    activeBlocks[query->message->from->id].deleteBlock(bot);
+    activeBlockViewers[query->from->id].deleteBlock(bot);
     //Getting json with previous number. Changing number in select query. Creating new blockView and replacing old. Sending base
-    uint32_t blockNumber = activeBlocks[query->message->from->id].getBlockNumber() - 1;
+    uint32_t blockNumber = activeBlockViewers[query->from->id].getBlockNumber() - 1;
     if (blockNumber < 1)
         return;
     //json
-    activeBlocks[query->message->from->id] = blockView(testJson, query->message, blockNumber);
-    activeBlocks[query->message->from->id].sendBlock(bot);
+    activeBlockViewers[query->from->id] = blockView(json::parse(blocks.find(query->from->id)->second), query->message, blockNumber);
+    activeBlockViewers[query->from->id].sendBlock(bot);
 }
 
 void cBot::select(Bot& bot, Message::Ptr message)
 {
     //
-    activeBlocks[message->from->id] = blockView(testJson, message, stoi(message->text));
-    activeBlocks[message->from->id].sendBlock(bot);
+    activeBlockViewers[message->from->id] = blockView(json::parse(blocks.find(message->from->id)->second), message, stoi(message->text));
+    activeBlockViewers[message->from->id].sendBlock(bot);
 }
 
 void cBot::askTeam(Bot& bot, Message::Ptr message)
 {
     //TODO: check if message->from->id is in team
-    //TODO: feature of adding people in team
+    //      feature of adding people in team
+    //      Separate team creating into class
     if (StringTools::startsWith(activeCommands[message->from->id], "ViewTeam"))
     {
         bot.getApi().sendMessage(message->chat->id, "Enter name of team you want to view");
@@ -268,7 +278,8 @@ void cBot::createTeam(Bot& bot, Message::Ptr message)
 
 void cBot::createPersonal(Bot& bot, Message::Ptr message)
 {
-    //Separate procedure into several different procedures which can be used by TeamCreator and PersonalCreator
+    activeCommands[message->from->id] = "PersonalCaption";
+    bot.getApi().sendMessage(message->chat->id, "Enter caption of element");
 }
 
 void cBot::viewTeam(Bot& bot, Message::Ptr message)
@@ -276,14 +287,30 @@ void cBot::viewTeam(Bot& bot, Message::Ptr message)
     //getting json from db
     //TODO: Check if such team is existing
     activeCommands[message->from->id] = "";
-    activeBlocks[message->from->id] = blockView(testJson, message, 1);
-    activeBlocks[message->from->id].sendBlock(bot);
+    activeBlockViewers[message->from->id] = blockView(testJson, message, 1);
+    activeBlockViewers[message->from->id].sendBlock(bot);
 }
 
 void cBot::viewPersonal(Bot& bot, Message::Ptr message)
 {
     //Getting json from db
     activeCommands[message->from->id] = "";
-    activeBlocks[message->from->id] = blockView(testJson, message, 1);
-    activeBlocks[message->from->id].sendBlock(bot);
+    activeBlockViewers[message->from->id] = blockView(json::parse(blocks.find(message->from->id)->second), message, 1);
+    activeBlockViewers[message->from->id].sendBlock(bot);
+}
+
+void cBot::appendPersonalCaption(Bot& bot, Message::Ptr message)
+{
+    if (StringTools::startsWith(message->text, "/save"))
+        return;
+    activeBlockCreators[message->from->id].setCaption(message->text);
+    activeCommands[message->from->id] = "PersonalMessage";
+    bot.getApi().sendMessage(message->chat->id, "Enter element of block");
+}
+
+void cBot::appendPersonalMessage(Bot& bot, Message::Ptr message)
+{
+    activeBlockCreators[message->from->id].setMessage(message);
+    activeCommands[message->from->id] = "PersonalCaption";
+    bot.getApi().sendMessage(message->chat->id, "Enter caption of element.\nTo save block enter /save");
 }

@@ -25,6 +25,7 @@ public:
 	void startCommand(Bot& bot, Message::Ptr message);
 	void createCommand(Bot& bot, Message::Ptr message);
 	void blockCommand(Bot& bot, Message::Ptr message);
+	void saveCommand(Bot& bot, Message::Ptr message);
 	void nextBlock(Bot& bot, CallbackQuery::Ptr query);
 	void selectBlock(Bot& bot, CallbackQuery::Ptr query);
 	void previousBlock(Bot& bot, CallbackQuery::Ptr query);
@@ -34,6 +35,8 @@ public:
 	void createPersonal(Bot& bot, Message::Ptr message);
 	void viewTeam(Bot& bot, Message::Ptr message);
 	void viewPersonal(Bot& bot, Message::Ptr message);
+	void appendPersonalMessage(Bot& bot, Message::Ptr message);
+	void appendPersonalCaption(Bot& bot, Message::Ptr message);
 private:
 	string token;
 
@@ -42,13 +45,11 @@ private:
 	//TODO Implement a new logging system
 	//vector<Message::Ptr> messagesForLogs{};
 
-	//TODO: Implement hash table of mutex for selecting blocks
-	//Key is id of user and mutex is T
-	//Notify mutex by message->from->id 
-	//Also need to store condition_vars
-
 	unordered_map<int64_t, string> activeCommands{};
-	unordered_map<int64_t, blockView> activeBlocks{};
+	unordered_map<int64_t, blockView> activeBlockViewers{};
+	unordered_map<int64_t, blockCreate> activeBlockCreators{};
+	//To be removed
+	multimap<int64_t, string> blocks{};
 
 	json testJson = R"({"array" : [{"type" : "text", "caption" : "caption1", "text" : "some text1"}, 
 {"type" : "photo", "caption" : "captionP","text" : "AgACAgIAAxkBAAIInmTbL1L44SYpat8S6ALFPbjdhXNPAALj0zEb0h3YSq4b3q520-CpAQADAgADcwADMAQ" },
