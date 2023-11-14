@@ -23,6 +23,7 @@ blockView::blockView(json info, Message::Ptr message, uint32_t blockNumber) : m_
 	}
 	catch (exception& e)
 	{
+		//TODO: Throw exception
 		printf("%s exception at blockView\n", e.what());
 		return;
 	}
