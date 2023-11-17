@@ -5,7 +5,9 @@
 //#include "HelperFunctions.h"
 
 int main() {
-    cBot("6085779942:AAHGc2LDchFWEOC4j6KWhp8qwffCg06DRW8");
+    std::wstring tokenenv = _wgetenv(L"TgToken");
+    std::string token(tokenenv.begin(), tokenenv.end());
+    cBot c(token);
     return 0;
 /*
 
