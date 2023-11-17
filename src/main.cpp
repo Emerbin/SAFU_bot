@@ -5,7 +5,7 @@
 //#include "HelperFunctions.h"
 
 int main() {
-    cBot("6085779942:AAHGc2LDchFWEOC4j6KWhp8qwffCg06DRW8");
+    cBot("Enter your token");
     return 0;
 /*
 
