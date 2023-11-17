@@ -49,7 +49,7 @@ private:
 	unordered_map<int64_t, blockView> activeBlockViewers{};
 	unordered_map<int64_t, blockCreate> activeBlockCreators{};
 	//To be removed
-	multimap<int64_t, string> blocks{};
+	unordered_map<int64_t, string> blocks{};
 
 	json testJson = R"({"array" : [{"type" : "text", "caption" : "caption1", "text" : "some text1"}, 
 {"type" : "photo", "caption" : "captionP","text" : "AgACAgIAAxkBAAIInmTbL1L44SYpat8S6ALFPbjdhXNPAALj0zEb0h3YSq4b3q520-CpAQADAgADcwADMAQ" },

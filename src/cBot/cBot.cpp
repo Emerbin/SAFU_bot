@@ -161,6 +161,8 @@ void cBot::createKeyboard(const std::vector<std::vector<std::string>>& buttonLay
         for (std::size_t j = 0; j < buttonLayout[i].size(); ++j) {
             TgBot::KeyboardButton::Ptr button(new TgBot::KeyboardButton);
             button->text = buttonLayout[i][j];
+            button->requestContact = false;
+            button->requestLocation = false;
             row.push_back(button);
         }
         kb->keyboard.push_back(row);
@@ -213,6 +215,7 @@ void cBot::blockCommand(Bot& bot, Message::Ptr message) // use unordered_map for
 void cBot::saveCommand(Bot& bot, Message::Ptr message)
 {
     blocks.insert(make_pair(message->from->id, activeBlockCreators[message->from->id].saveBlock()));
+    bot.getApi().sendMessage(message->chat->id, "Enter /block to see your block");
     activeCommands[message->from->id] = "";
 }
 
@@ -222,7 +225,7 @@ void cBot::nextBlock(Bot& bot, CallbackQuery::Ptr query)
     //Getting json with next number. Changing number in select query. Creating new blockView and replacing old. Sending base
     uint32_t blockNumber = activeBlockViewers[query->from->id].getBlockNumber() + 1;
     //json
-    activeBlockViewers[query->from->id] = blockView(json::parse(blocks.find(query->from->id)->second), query->message, blockNumber);
+    activeBlockViewers[query->from->id] = blockView(json::parse(blocks.at(query->from->id)), query->message, blockNumber);
     activeBlockViewers[query->from->id].sendBlock(bot);
 }
 
@@ -243,14 +246,14 @@ void cBot::previousBlock(Bot& bot, CallbackQuery::Ptr query)
     if (blockNumber < 1)
         return;
     //json
-    activeBlockViewers[query->from->id] = blockView(json::parse(blocks.find(query->from->id)->second), query->message, blockNumber);
+    activeBlockViewers[query->from->id] = blockView(json::parse(blocks.at(query->from->id)), query->message, blockNumber);
     activeBlockViewers[query->from->id].sendBlock(bot);
 }
 
 void cBot::select(Bot& bot, Message::Ptr message)
 {
     //
-    activeBlockViewers[message->from->id] = blockView(json::parse(blocks.find(message->from->id)->second), message, stoi(message->text));
+    activeBlockViewers[message->from->id] = blockView(json::parse(blocks.at(message->from->id)), message, stoi(message->text));
     activeBlockViewers[message->from->id].sendBlock(bot);
 }
 
@@ -295,8 +298,16 @@ void cBot::viewPersonal(Bot& bot, Message::Ptr message)
 {
     //Getting json from db
     activeCommands[message->from->id] = "";
-    activeBlockViewers[message->from->id] = blockView(json::parse(blocks.find(message->from->id)->second), message, 1);
-    activeBlockViewers[message->from->id].sendBlock(bot);
+    try
+    {
+        activeBlockViewers[message->from->id] = blockView(json::parse(blocks.at(message->from->id)), message, 1);
+        activeBlockViewers[message->from->id].sendBlock(bot);
+    }
+    catch (exception& e)
+    {
+        printf("%s", e.what());
+        return;
+    }
 }
 
 void cBot::appendPersonalCaption(Bot& bot, Message::Ptr message)
@@ -310,6 +321,8 @@ void cBot::appendPersonalCaption(Bot& bot, Message::Ptr message)
 
 void cBot::appendPersonalMessage(Bot& bot, Message::Ptr message)
 {
+    if (StringTools::startsWith(message->text, "/save"))
+        return;
     activeBlockCreators[message->from->id].setMessage(message);
     activeCommands[message->from->id] = "PersonalCaption";
     bot.getApi().sendMessage(message->chat->id, "Enter caption of element.\nTo save block enter /save");
