@@ -3,19 +3,19 @@
 // Default constructor for empty blockCreate, so we can use it in map
 blockCreate::blockCreate()
 {
-	printf("Empty block creator\n");
+	printf("[BlockCreate]Empty block creator\n");
 }
 
 void blockCreate::setMessage(Message::Ptr message)
 {
 	m_messages.push_back(message);
-	printf("Message pushed backed\n");
+	printf("[BlockCreate]Message pushed backed\n");
 }
 
 void blockCreate::setCaption(string caption)
 {
 	m_captions.push_back(caption);
-	printf("Caption pushed backed\n");
+	printf("[BlockCreate]Caption pushed backed\n");
 }
 
 void blockCreate::processMessages()
@@ -26,20 +26,24 @@ void blockCreate::processMessages()
 		message messageToSave{ mParse.getMessageTypes()[0], *caption++, mParse.getMessageText()[0]};
 		try 
 		{
-			m_jsonBlock["array"].push_back(messageToSave);
+			m_jsonBlock["Messages"].push_back(messageToSave);
 		}
 		catch (exception& e)
 		{
-			printf("%s exception at blockCreate\n", e.what());
+			printf("[Exception][At blockCreate] %s\n", e.what());
 			return;
 		}
 	}
-	printf("Messages proccesed successfully\n");
+	printf("[BlockCreate]Messages proccesed successfully\n");
+}
+
+json blockCreate::getJson()
+{
+	return m_jsonBlock;
 }
 
 string blockCreate::saveBlock()
 {
 	//TODO: Make call to database
-	processMessages();
 	return m_jsonBlock.dump();
 }

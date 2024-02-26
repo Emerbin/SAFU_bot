@@ -1,5 +1,6 @@
 #pragma once
 #include "pch.h"
+#include "reminder.h"
 
 using namespace std;
 using namespace TgBot;
@@ -14,13 +15,14 @@ using namespace TgBot;
 class timeProcessor
 {
 public:
-	timeProcessor(Message::Ptr message);
+	timeProcessor(reminder rem);
 private:
-	Message::Ptr m_message;
+	
+	/*Message::Ptr m_message;
 	void parsingMessage(string dateTime, string formatStr);
 	void creatingReminder();
 	void savingReminder();
 	chrono::sys_time<chrono::seconds> m_parsedTime{};
 	const vector<string> m_formats = { " %Y %m %d %H:%M:%S"," %Y %m %d"," %T"," %d-%m-'%Y' %R"};
-	vector<future<void>> m_futures{};
+	vector<future<void>> m_futures{};*/
 };

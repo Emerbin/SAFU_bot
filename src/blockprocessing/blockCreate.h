@@ -18,6 +18,7 @@ private:
 public:
 	blockCreate();
 	string saveBlock();
+	json getJson();
 	void setMessage(Message::Ptr);
 	void setCaption(string caption);
 	void processMessages();

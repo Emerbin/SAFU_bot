@@ -3,7 +3,7 @@
 blockView::blockView()
 {
 	m_jsonBlock.clear();
-	printf("Json cleared\nCreated empty block\n");
+	printf("[BlockView]Json cleared\n[BlockView]Created empty block\n");
 }
 
 //Getting block from json
@@ -15,8 +15,8 @@ blockView::blockView(json info, Message::Ptr message, uint32_t blockNumber) : m_
 	try
 	{
 		m_jsonBlock = info;
-		printf("Json created successfully\n");
-		for (auto& _message : m_jsonBlock.at("array"))
+		printf("[BlockView]Json created successfully\n");
+		for (auto& _message : m_jsonBlock.at("Messages"))
 		{
 			m_messagesToSend.push_back(_message);
 		}
@@ -24,10 +24,10 @@ blockView::blockView(json info, Message::Ptr message, uint32_t blockNumber) : m_
 	catch (exception& e)
 	{
 		//TODO: Throw exception
-		printf("%s exception at blockView\n", e.what());
+		printf("[Exception][At blockView] %s\n", e.what());
 		return;
 	}
-	printf("Block created successfully\n");
+	printf("[BlockView]Block created successfully\n");
 }
 
 //Sending all of information from message struct
